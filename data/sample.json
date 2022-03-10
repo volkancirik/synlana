@@ -1,0 +1,52 @@
+[
+  {
+    "filename": "ab2avi-ANNIEHALL-day0001-onsite_transcript",
+    "turns": [
+      {
+        "timestamp": 1,
+        "speaker_id": "S1",
+        "raw_text": "Hi.  Hi, hi.",
+        "text": "Hi.  Hi, hi.",
+        "speaker": "Annie",
+        "manual_speaker_fix": false,
+        "manual_redacted": false
+      },
+      {
+        "timestamp": 11,
+        "speaker_id": "S2",
+        "raw_text": "Hi.  Oh, hi.  Hi.",
+        "text": "Hi.  Oh, hi.  Hi.",
+        "speaker": "Alvie",
+        "manual_speaker_fix": false,
+        "manual_redacted": false
+      },
+      {
+        "timestamp": 21,
+        "speaker_id": "S1",
+        "raw_text": "Well, bye.",
+        "text": "Well, bye.",
+        "speaker": "Annie",
+        "manual_speaker_fix": false,
+        "manual_redacted": false
+      },
+      {
+        "timestamp": 31,
+        "speaker_id": "S2",
+        "raw_text": "You-you play ... very well.",
+        "text": "You-you play ... very well.",
+        "speaker": "Alvie",
+        "manual_speaker_fix": false,
+        "manual_redacted": false
+      },
+      {
+        "timestamp": 41,
+        "speaker_id": "S1",
+         "raw_text": "Oh, yeah?  So do you.  Oh, God, whatta-whatta dumb thing to say, right?  I mean, you say it, 'You play well,' and right away ... I have to say well.  Oh, oh God, Annie.",
+        "text": "Oh, yeah?  So do you.  Oh, God, whatta-whatta dumb thing to say, right?  I mean, you say it, 'You play well,' and right away ... I have to say well.  Oh, oh God, Annie.",
+        "speaker": "Annie",
+        "manual_speaker_fix": false,
+        "manual_redacted": false
+      }
+    ]
+  }
+]
