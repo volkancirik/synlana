@@ -8,9 +8,9 @@ from nltk.tree import Tree
 import io
 usage = '''Runs the analysis.
 
-$> python analysis.py <timestamp csv> <transcription folder> <OPTIONAL: parse type>
-$> python utils.py data/sample_timestamp.csv data/sample_transcriptions parsed
-$> python utils.py data/sample_timestamp.csv data/sample_transcriptions disdetparse
+$> python analysis.py <timestamp csv> <transcription folder> <parse type> <OPTIONAL debug_file>
+$> python analysis.py data/sample_timestamp.csv data/sample_transcriptions parsed
+$> python analysis.py data/sample_timestamp.csv data/sample_transcriptions disdecparse debug.txt
 '''
 
 
@@ -87,7 +87,7 @@ def find_missing_files(root_path):
   For each interview;
       .parsed : constituency parse
       .dp_single: single line dependency parses
-      .disdet: constituency parses with disfluency
+      .disdec: constituency parses with disfluency
       .tokenized: tokenized lines
       .meta: meta data for each line
   '''
@@ -101,12 +101,12 @@ def find_missing_files(root_path):
   for f in flist:
     pfile = f.replace('.txt', '.parsed')
     dpfile = f.replace('.txt', '.dp_single')
-    disdetpfile = f.replace('.txt', '.disdetparse')
+    disdecpfile = f.replace('.txt', '.disdecparse')
     tfile = f.replace('.txt', '.tokenized')
     mfile = f.replace('.txt', '.meta')
 
     # check if all extensions exist
-    if os.path.isfile(pfile) and os.path.isfile(tfile) and os.path.isfile(mfile) and os.path.isfile(dpfile) and os.path.isfile(disdetpfile):
+    if os.path.isfile(pfile) and os.path.isfile(tfile) and os.path.isfile(mfile) and os.path.isfile(dpfile) and os.path.isfile(disdecpfile):
       continue
     missing += [f]
 
@@ -126,7 +126,7 @@ def check_files(root_path):
   For each interview;
       .parsed : constituency parse
       .dp_single: single line dependency parses
-      .disdet: constituency parses with disfluency
+      .disdec: constituency parses with disfluency
       .tokenized: tokenized lines
       .meta: meta data for each line
   '''
@@ -144,20 +144,20 @@ def check_files(root_path):
     dpfile = f.replace('.txt', '.dp_single')
     tfile = f.replace('.txt', '.tokenized')
     mfile = f.replace('.txt', '.meta')
-    disdetpfile = f.replace('.txt', '.disdetparse')
+    disdecpfile = f.replace('.txt', '.disdecparse')
 
     # read all extensions
     plines = [line.strip() for line in open_file(pfile)]
     dplines = [line.strip() for line in open_file(dpfile)]
-    disdetplines = [line.strip() for line in open_file(disdetpfile)]
+    disdecplines = [line.strip() for line in open_file(disdecpfile)]
     tlines = [line.strip() for line in open_file(tfile)]
     mlines = [line.strip() for line in open_file(mfile)]
 
     # they should all be same length
-    if len(plines) == len(tlines) and len(plines) == len(mlines) and len(plines) == len(disdetplines) and len(plines) == len(dplines):
+    if len(plines) == len(tlines) and len(plines) == len(mlines) and len(plines) == len(disdecplines) and len(plines) == len(dplines):
       continue
-    unmatched += ['plines {} tlines {} mlines {} disdetplines {} dplines {}'.format(
-        len(plines), len(tlines), len(mlines), len(disdetplines), len(dplines))+'\t'+f]
+    unmatched += ['plines {} tlines {} mlines {} disdecplines {} dplines {}'.format(
+        len(plines), len(tlines), len(mlines), len(disdecplines), len(dplines))+'\t'+f]
 
   # report results
   if len(unmatched) > 0:
@@ -241,10 +241,11 @@ def get_parse_trees(parse_file, transcript, vocab,
 
 
 def study_syntactic_scores(timestamp_file, root_path,
-                           parse_suffix='parsed'):
+                           parse_suffix='parsed',
+                           debug_file=''):
   '''Calculate scores for all interviews.
   By changing parse_suffix one can use different constituency parses. 
-  Options are parsed and disdetparse for now.
+  Options are parsed and disdecparse for now.
   '''
   print('Using Parse Suffix:', parse_suffix)
 
@@ -257,6 +258,9 @@ def study_syntactic_scores(timestamp_file, root_path,
   f = open_file(timestamp_file)
   lines = [line.strip().split(',') for line in f][1:]
   f.close()
+
+  if debug_file:
+    debug_f = open(debug_file, 'w')
 
   problems = []
   results = []
@@ -328,7 +332,9 @@ def study_syntactic_scores(timestamp_file, root_path,
     max_w = np.ones((1, 300))*float('-inf')
 
     sent_vecs = []
+    sent_vecs_debug = []
     other_utt_vecs = []
+    other_utt_vecs_debug = []
     # for each sentence
     for txt in txts:
       sent_vec = np.zeros((1, 300))
@@ -351,6 +357,7 @@ def study_syntactic_scores(timestamp_file, root_path,
       # average sentence vector for circularity and temporal circularity
       sent_vec /= len(txt)
       sent_vecs.append(sent_vec)
+      sent_vecs_debug.append(txt)
 
     for utts in other_utts:
       # for each token in other utterance
@@ -363,8 +370,10 @@ def study_syntactic_scores(timestamp_file, root_path,
           # keep track of out of vocabulary words
           vec = np.zeros((1, 300))
         sent_vec += vec
-      sent_vec /= len(txt)
+      if len(utts):
+        sent_vec /= len(utts)
       other_utt_vecs.append(sent_vec)
+      other_utt_vecs_debug.append(utts)
 
     # measure the coverage of each dimension
     size_w = np.zeros((1, 300))
@@ -392,26 +401,41 @@ def study_syntactic_scores(timestamp_file, root_path,
 
     # calculate pairwise distances for participants own sentences
     n = len(sent_vecs)
-    distances = []
+    pairwise_distances = []
+    pairwise_distances_debug = []
     for ii in range(n):
       for jj in range(ii+1, n):
         diff = sent_vecs[ii] - sent_vecs[jj]
         distance = np.linalg.norm(diff)
-        distances.append(distance)
+        pairwise_distances.append(distance)
+        pairwise_distances_debug.append((ii, jj))
 
     # calculate the distance between successive sentences
     temporal_distances = []
+    shuffled_distances = []
+    temporal_distances_debug = []
+    shuffled_distances_debug = []
+
     for ii in range(n-1):
       diff = sent_vecs[ii] - sent_vecs[ii+1]
       distance = np.linalg.norm(diff)
       temporal_distances.append(distance)
+      temporal_distances_debug.append((ii, ii+1))
+
+      jj = np.random.randint(n-1)
+      diff = sent_vecs[ii] - sent_vecs[jj]
+      distance = np.linalg.norm(diff)
+      shuffled_distances.append(distance)
+      shuffled_distances_debug.append((ii, jj))
 
     # calculate the distance between responses
     diadic_distances = []
+    diadic_distances_debug = []
     for ii in range(n):
       diff = sent_vecs[ii] - other_utt_vecs[ii]
       distance = np.linalg.norm(diff)
       diadic_distances.append(distance)
+      diadic_distances_debug.append(ii)
 
     # keep a dictionary of scores for each metrics
     scores = {'yngve': scores_yngve,
@@ -425,9 +449,10 @@ def study_syntactic_scores(timestamp_file, root_path,
     functions = [np.min, np.max, np.mean, np.std]
     for fn, calc in zip(functions, calculations):
 
-      scores['pairwise_sent_dist_'+calc] = fn(distances)
+      scores['pairwise_sent_dist_'+calc] = fn(pairwise_distances)
       scores['temporal_sent_dist_'+calc] = fn(temporal_distances)
       scores['diadic_sent_dist_'+calc] = fn(diadic_distances)
+      scores['shuffled_sent_dist_'+calc] = fn(shuffled_distances)
 
     # calculate diversity for all dimension
     diversity_all = []
@@ -440,15 +465,52 @@ def study_syntactic_scores(timestamp_file, root_path,
       scores['diversity_all_'+calc] = fn(diversity_all)
 
     # for each dimension calculate the diversity size
-    for d in range(300):
-      scores['diversity_d{}'.format(d)] = size_w[0, d]
+    # for d in range(300):
+    #   scores['diversity_d{}'.format(d)] = size_w[0, d]
 
     # percentage of out-of-vocabulary word usage
     scores['oov'] = oov/total
 
+    # DEBUGGING
+    if debug_file:
+      functions = [np.argmin, np.argmax]
+      calculations = ['argmin', 'argmax']
+      tuples = [('pairwise_distances', pairwise_distances, pairwise_distances_debug),
+                ('temporal_distances', temporal_distances, temporal_distances_debug),
+                ('diadic_distances', diadic_distances, diadic_distances_debug),
+                ('shuffled_distances', shuffled_distances, shuffled_distances_debug),
+                ('yngve', scores_yngve, txts),
+                ('nodes', scores_nodes, txts),
+                ('frazier', scores_frazier, txts),
+                ('mdd', scores_mdd, txts)
+                ]
+      for t in tuples:
+        n, s, d = t
+        for fn, calc in zip(functions, calculations):
+          idx = fn(s)
+          debug = d[idx]
+          if type(debug) == int:
+            if 'diadic' in n:
+              debug = '[Patient]:' + ' '.join(txts[debug]) + \
+                  ' [Interviewer]:' + ' '.join(other_utt_vecs_debug[debug])
+            else:
+              raise NotImplementedError()
+          elif type(debug) == tuple:
+            debug = '[Sent_{}]:'.format(debug[0]) + ' '.join(txts[debug[0]]) + \
+                    ' [Sent_{}]:'.format(debug[1]) + \
+                ' '.join(txts[debug[1]])
+          elif type(debug) == list:
+            debug = ' '.join(debug)
+          else:
+            raise NotImplementedError()
+          debug_line = '{} {} {} {}'.format(n, calc, s[idx], debug)
+          debug_f.write(debug_line + '\n')
+
     # add meta data and scores
     results.append((lines[:3], scores))
   print('Returning results for {} studies'.format(len(results)))
+  if debug_file:
+    debug_f.close()
   return results
 
 
@@ -484,13 +546,17 @@ def print_sss(results):
 if __name__ == '__main__':
 
   # if no input given use "parsed" as the extension
-  # alternative is disdetparse
-  if not(3 <= len(sys.argv) <= 4):
+  # alternative is disdecparse
+  if not(4 <= len(sys.argv) <= 5):
     print(usage)
     quit(0)
   parse_suffix = 'parsed'
-  if len(sys.argv) == 4:
-    parse_suffix = sys.argv[3]
+  parse_suffix = sys.argv[3]
+  if len(sys.argv) == 5:
+    debug_file = sys.argv[4]
+  else:
+    debug_file = ''
   results = study_syntactic_scores(sys.argv[1], sys.argv[2],
-                                   parse_suffix=parse_suffix)
+                                   parse_suffix=parse_suffix,
+                                   debug_file=debug_file)
   print_sss(results)

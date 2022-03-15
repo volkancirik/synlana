@@ -13,7 +13,7 @@ Proc BioNLP 2007.
 
 
 try:
-import sys
+  import sys
   from nltk.tree import Tree
   from nltk.draw.tree import TreeWidget
   from nltk.draw.util import (CanvasFrame, CanvasWidget, BoxWidget,
@@ -89,9 +89,10 @@ def main():
   frazier_tot = 0
   nodes_tot = 0
   for line in sys.stdin:
-    if line.strip() == "":
-      continue
-    t = Tree.parse(line)
+    if line == "end":
+      break
+    print('>>>line', line)
+    t = Tree.fromstring(line)
     words = calc_words(t)
     words_tot += words
     sents += 1
@@ -104,13 +105,14 @@ def main():
     frazier = calc_frazier(t, 0, "")
     frazier_avg = float(frazier)/words
     frazier_tot += frazier_avg
-    # print "Sentence=%d\twords=%d\tyngve=%f\tfrazier=%f\tnodes=%f" % (sents, words, yngve_avg, frazier_avg, nodes_avg)
-  yngve_avg = float(yngve_tot)/sents
-  frazier_avg = float(frazier_tot)/sents
-  nodes_avg = float(nodes_tot)/sents
-  words_avg = float(words_tot)/sents
-  print("Total\tsents=%d\twords=%f\tyngve=%f\tfrazier=%f\tnodes=%f" %
-        (sents, words_avg, yngve_avg, frazier_avg, nodes_avg))
+    print("Sentence=%d\twords=%d\tyngve=%f\tfrazier=%f\tnodes=%f" %
+          (sents, words, yngve_avg, frazier_avg, nodes_avg))
+  # yngve_avg = float(yngve_tot)/sents
+  # frazier_avg = float(frazier_tot)/sents
+  # nodes_avg = float(nodes_tot)/sents
+  # words_avg = float(words_tot)/sents
+  # print("Total\tsents=%d\twords=%f\tyngve=%f\tfrazier=%f\tnodes=%f" %
+  #       (sents, words_avg, yngve_avg, frazier_avg, nodes_avg))
 
 
 if __name__ == '__main__':
